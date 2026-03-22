@@ -1,0 +1,46 @@
+{
+  "expo": {
+    "name": "HIMIGHUB",
+    "owner": "liopauld",
+    "slug": "himighub",
+    "scheme": "himighub",
+    "sdkVersion": "54.0.0",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "icon": "./assets/icon.png",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#F5F5F0"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#F5F5F0"
+      },
+      "googleServicesFile": "./google-services.json",
+      "package": "com.himighub.app",
+      "permissions": [
+        "android.permission.RECORD_AUDIO"
+      ]
+    },
+    "web": {},
+    "plugins": [
+      "expo-secure-store",
+      "expo-image-picker",
+      "expo-notifications",
+      "expo-web-browser"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "a180060c-729d-4047-89ff-8bfa45f4a0b1"
+      }
+    }
+  }
+}

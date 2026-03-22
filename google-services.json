@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "971045269340",
+    "project_id": "himighub-e86cb",
+    "storage_bucket": "himighub-e86cb.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:971045269340:android:13ced21739f260ee2b9b99",
+        "android_client_info": {
+          "package_name": "com.himighub.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "971045269340-tmup0ogq84qasf42a5sbda4p6utpcnrp.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDFihY9NHXHCfsaOZaygqKRFSJNAWqRtAE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "971045269340-tmup0ogq84qasf42a5sbda4p6utpcnrp.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
