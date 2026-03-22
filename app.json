@@ -1,16 +1,16 @@
 {
   "expo": {
     "name": "HIMIGHUB",
-    "owner": "liopauld",
+    "owner": "pauldom",
     "slug": "himighub",
     "scheme": "himighub",
     "sdkVersion": "54.0.0",
     "version": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/logo.png",
     "splash": {
-      "image": "./assets/splash.png",
+      "image": "./assets/logo.png",
       "resizeMode": "contain",
       "backgroundColor": "#F5F5F0"
     },
@@ -35,11 +35,13 @@
       "expo-secure-store",
       "expo-image-picker",
       "expo-notifications",
-      "expo-web-browser"
+      "expo-web-browser",
+      "expo-font",
+      "@react-native-google-signin/google-signin"
     ],
     "extra": {
       "eas": {
-        "projectId": "a180060c-729d-4047-89ff-8bfa45f4a0b1"
+        "projectId": "24c32d38-7714-441f-82a1-16898e9025d5"
       }
     }
   }

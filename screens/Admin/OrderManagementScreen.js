@@ -52,16 +52,24 @@ const OrderManagementScreen = ({ navigation }) => {
       return;
     }
 
-    const result = await dispatch(updateOrderStatus({ id: selectedOrderId, status }));
+    const orderId = selectedOrderId;
+    setStatusModalVisible(false);
+    setSelectedCurrentStatus(status);
+
+    if (selectedOrder?._id === orderId) {
+      setSelectedOrder((prev) => (prev ? { ...prev, status } : prev));
+    }
+
+    const result = await dispatch(updateOrderStatus({ id: orderId, status }));
     if (!result.error) {
-      setSelectedCurrentStatus(status);
       // Pull fresh list to keep cards in sync with backend immediately.
       dispatch(fetchAllOrders());
-      if (selectedOrder?._id === selectedOrderId) {
-        setSelectedOrder((prev) => (prev ? { ...prev, status } : prev));
-      }
+      return;
     }
-    setStatusModalVisible(false);
+
+    Alert.alert('Update failed', result.payload || 'Unable to update status right now.');
+    setSelectedCurrentStatus(selectedOrder?.status || selectedOrder?.orderStatus || 'Pending');
+    dispatch(fetchAllOrders());
   };
 
   const handleViewDetails = (order) => {
@@ -118,7 +126,7 @@ const OrderManagementScreen = ({ navigation }) => {
         <View style={{ width: 40 }} />
       </View>
 
-      {loading ? (
+      {loading && orders.length === 0 ? (
         <ActivityIndicator size="large" color={colors.primary} style={styles.center} />
       ) : (
         <FlatList

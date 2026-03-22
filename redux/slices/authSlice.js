@@ -36,9 +36,7 @@ export const firebaseLogin = createAsyncThunk('auth/firebaseLogin', async (fireb
 
 export const updateProfile = createAsyncThunk('auth/updateProfile', async (formData, { rejectWithValue }) => {
   try {
-    const response = await api.put('/users/profile', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    });
+    const response = await api.put('/users/profile', formData);
     return response.data.data.user;
   } catch (error) {
     return rejectWithValue(error.response?.data?.message || 'Profile update failed');

@@ -153,21 +153,30 @@ const ProductFormScreen = ({ navigation, route }) => {
     const formData = new FormData();
     formData.append('name', name.trim());
     formData.append('brand', brand.trim());
-    formData.append('price', priceNum);
+    formData.append('price', String(priceNum));
     formData.append('description', description.trim());
     formData.append('ingredients', ingredients.trim());
     formData.append('category', category);
     formData.append('stock', String(stockNum));
     formData.append('isAvailable', String(isAvailable));
-    if (originalPrice) formData.append('originalPrice', parseFloat(originalPrice));
-    if (discountPercent) formData.append('discountPercent', parseInt(discountPercent, 10));
+    if (originalPrice) formData.append('originalPrice', String(parseFloat(originalPrice)));
+    if (discountPercent) formData.append('discountPercent', String(parseInt(discountPercent, 10)));
     formData.append('sizes', JSON.stringify(selectedSizes));
 
     images.forEach((uri, idx) => {
       if (uri.startsWith('http')) return; // existing server image, skip
       const parts = uri.split('.');
       const ext = (parts[parts.length - 1] || 'jpg').toLowerCase();
-      const mime = ext === 'png' ? 'image/png' : ext === 'webp' ? 'image/webp' : 'image/jpeg';
+      const mime =
+        ext === 'png'
+          ? 'image/png'
+          : ext === 'webp'
+          ? 'image/webp'
+          : ext === 'heic'
+          ? 'image/heic'
+          : ext === 'heif'
+          ? 'image/heif'
+          : 'image/jpeg';
       formData.append('images', {
         uri,
         name: `image_${idx}.${ext}`,

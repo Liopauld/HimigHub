@@ -51,9 +51,13 @@ const UserProfileScreen = ({ navigation }) => {
   };
 
   const avatarRaw = typeof user?.avatar === 'string' ? user.avatar : '';
+  const avatarVersion = user?.updatedAt ? new Date(user.updatedAt).getTime() : null;
   const avatarUrl = avatarRaw
     ? (avatarRaw.startsWith('http') ? avatarRaw : `${BASE_URL.replace('/api', '')}${avatarRaw}`)
     : 'https://via.placeholder.com/150';
+  const avatarDisplayUrl = avatarVersion
+    ? `${avatarUrl}${avatarUrl.includes('?') ? '&' : '?'}v=${avatarVersion}`
+    : avatarUrl;
 
   const handleOpenMenu = () => {
     if (typeof navigation.openDrawer === 'function') {
@@ -74,7 +78,7 @@ const UserProfileScreen = ({ navigation }) => {
 
       <ScrollView contentContainerStyle={styles.scroll}>
         <View style={styles.avatarContainer}>
-          <Image source={{ uri: avatarUrl }} style={[styles.avatar, { backgroundColor: colors.imageCard }]} />
+          <Image source={{ uri: avatarDisplayUrl }} style={[styles.avatar, { backgroundColor: colors.imageCard }]} />
           <View style={[styles.roleBadge, { backgroundColor: colors.primary, borderColor: colors.surface }]}>
             <Text variant="caption" weight="bold" color="light">{user?.role?.toUpperCase()}</Text>
           </View>

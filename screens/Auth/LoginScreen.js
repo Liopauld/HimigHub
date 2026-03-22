@@ -16,6 +16,24 @@ import { useAppTheme } from '../../context/ThemeContext';
 
 WebBrowser.maybeCompleteAuthSession();
 
+const IS_EXPO_GO =
+  Constants.appOwnership === 'expo' ||
+  Constants.executionEnvironment === 'storeClient';
+
+let GoogleSignin = null;
+if (!IS_EXPO_GO) {
+  try {
+    GoogleSignin = require('@react-native-google-signin/google-signin').GoogleSignin;
+    GoogleSignin.configure({
+      webClientId:
+        process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID ||
+        process.env.EXPO_PUBLIC_GOOGLE_EXPO_CLIENT_ID,
+    });
+  } catch (e) {
+    console.log('[GoogleAuth] native-google-signin-unavailable:', e?.message || String(e));
+  }
+}
+
 const LoginScreen = ({ navigation }) => {
   const dispatch = useDispatch();
   const { loading, error } = useSelector((state) => state.auth);
@@ -25,25 +43,40 @@ const LoginScreen = ({ navigation }) => {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState({});
-  const isExpoGo =
-    Constants.appOwnership === 'expo' ||
-    Constants.executionEnvironment === 'storeClient';
-  const expoOwner = Constants?.expoConfig?.owner || 'liopauld';
-  const expoSlug = Constants?.expoConfig?.slug || 'himighub';
-  const projectNameForProxy = `@${expoOwner}/${expoSlug}`;
-  const redirectUri = `https://auth.expo.io/${projectNameForProxy}`;
+  const [googlePending, setGooglePending] = useState(false);
+  const isExpoGo = IS_EXPO_GO;
+  const projectNameForProxy = '@pauldom/himighub';
+  const proxyClientId =
+    process.env.EXPO_PUBLIC_GOOGLE_EXPO_CLIENT_ID ||
+    process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID;
+  const proxyRedirectUri = `https://auth.expo.io/${projectNameForProxy}`;
 
-  // Force proxy web OAuth flow to guarantee redirect URI matches auth.expo.io.
   const googleAuthConfig = {
-    expoClientId: process.env.EXPO_PUBLIC_GOOGLE_EXPO_CLIENT_ID,
-    clientId: process.env.EXPO_PUBLIC_GOOGLE_EXPO_CLIENT_ID,
-    webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
-    redirectUri,
-    responseType: AuthSession.ResponseType.IdToken,
-    usePKCE: false,
+    ...(isExpoGo
+      ? {
+          expoClientId: proxyClientId,
+          webClientId: proxyClientId,
+          androidClientId: proxyClientId,
+          iosClientId: proxyClientId,
+          // Keep Expo Go config minimal so AuthSession can manage proxy redirect/state.
+          responseType: AuthSession.ResponseType.Token,
+        }
+      : {
+          expoClientId: proxyClientId,
+          webClientId: proxyClientId,
+          androidClientId: proxyClientId,
+          iosClientId: proxyClientId,
+          redirectUri: proxyRedirectUri,
+          responseType: AuthSession.ResponseType.IdToken,
+          usePKCE: false,
+        }),
+    scopes: ['openid', 'profile', 'email'],
+    extraParams: {
+      prompt: 'select_account',
+    },
   };
 
-  const [request, , promptAsync] = Google.useAuthRequest(
+  const [request, response, promptAsync] = Google.useAuthRequest(
     googleAuthConfig,
     {
       useProxy: true,
@@ -54,10 +87,11 @@ const LoginScreen = ({ navigation }) => {
   useEffect(() => {
     if (!request?.url) return;
     // Debug aid for OAuth mismatches: confirms exact client_id + redirect_uri sent to Google.
-    console.log('[GoogleAuth] configVersion: proxy-idtoken-v2');
+    console.log('[GoogleAuth] mode:', isExpoGo ? 'expo-go-disabled' : 'standalone-native');
     console.log('[GoogleAuth] requestUrl:', request.url);
-    console.log('[GoogleAuth] redirectUri:', redirectUri);
-  }, [request?.url]);
+    console.log('[GoogleAuth] redirectUri:', request?.redirectUri || '(auto)');
+    console.log('[GoogleAuth] clientId:', isExpoGo ? proxyClientId : process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID);
+  }, [request?.url, request?.redirectUri, proxyClientId, isExpoGo]);
   const exchangeGoogleForFirebaseToken = async ({ googleIdToken, googleAccessToken }) => {
     const url = `https://identitytoolkit.googleapis.com/v1/accounts:signInWithIdp?key=${firebaseApiKey}`;
     const authHandlerUrl = firebaseConfig?.authDomain
@@ -85,7 +119,7 @@ const LoginScreen = ({ navigation }) => {
       const message = rawMessage === 'CONFIGURATION_NOT_FOUND'
         ? 'Firebase Google Sign-In is not enabled. In Firebase Console, enable Authentication > Sign-in method > Google and save.'
         : rawMessage;
-      throw new Error(message);
+      throw new Error(`Firebase exchange failed (${response.status}): ${message}`);
     }
 
     if (!payload?.idToken) {
@@ -109,9 +143,139 @@ const LoginScreen = ({ navigation }) => {
     dispatch(login({ email, password }));
   };
 
+  const extractTokensFromAuthResult = (authResult) => {
+    const callbackHash = authResult?.url?.includes('#')
+      ? authResult.url.split('#')[1]
+      : '';
+    const hashParams = new URLSearchParams(callbackHash);
+
+    const idToken =
+      authResult?.authentication?.idToken ||
+      authResult?.params?.id_token ||
+      hashParams.get('id_token');
+
+    const accessToken =
+      authResult?.authentication?.accessToken ||
+      authResult?.params?.access_token ||
+      hashParams.get('access_token');
+
+    const authCode =
+      authResult?.params?.code ||
+      hashParams.get('code');
+
+    const providerMessage =
+      authResult?.params?.error_description ||
+      authResult?.params?.error ||
+      hashParams.get('error_description') ||
+      hashParams.get('error');
+
+    return { idToken, accessToken, providerMessage };
+  };
+
+  useEffect(() => {
+    if (!response) return;
+
+    const processGoogleResponse = async () => {
+      console.log('[GoogleAuth] step:', 'response-channel', response?.type);
+      if (response?.type === 'dismiss') {
+        console.log('[GoogleAuth] dismiss-response-details:', {
+          hasUrl: Boolean(response?.url),
+          hasParams: Boolean(response?.params),
+        });
+      }
+
+      let { idToken, accessToken, providerMessage } = extractTokensFromAuthResult(response);
+
+      console.log('[GoogleAuth] step:', 'token-parse', {
+        hasIdToken: Boolean(idToken),
+        hasAccessToken: Boolean(accessToken),
+      });
+
+      if (response.type !== 'success' && !idToken && !accessToken) {
+        if (googlePending) {
+          const failureReason = response.type || 'unknown';
+          setErrors({ google: providerMessage || `Google login did not complete (${failureReason}).` });
+        }
+        setGooglePending(false);
+        return;
+      }
+
+      if (!idToken && !accessToken) {
+        setErrors({ google: 'Google login failed. Missing token from Google response.' });
+        setGooglePending(false);
+        return;
+      }
+
+      try {
+        const firebaseToken = await exchangeGoogleForFirebaseToken({
+          googleIdToken: idToken,
+          googleAccessToken: accessToken,
+        });
+        console.log('[GoogleAuth] step:', 'firebase-exchange-success');
+
+        await dispatch(googleLogin(firebaseToken)).unwrap();
+        console.log('[GoogleAuth] step:', 'backend-login-success');
+      } catch (e) {
+        console.log('[GoogleAuth] step:', 'login-failed', e?.message || String(e));
+        setErrors({ google: e?.message || String(e) || 'Google login failed. Please try again.' });
+      } finally {
+        setGooglePending(false);
+      }
+    };
+
+    processGoogleResponse();
+  }, [response]);
+
   const handleGoogleLogin = async () => {
     setErrors({});
     try {
+      console.log('[GoogleAuth] step:', 'start-google-login');
+      if (isExpoGo) {
+        setErrors({
+          google:
+            'Google Sign-In is disabled in Expo Go because redirect_uri uses exp:// and Google blocks it. Install the preview APK (EAS build) to use Google login.',
+        });
+        return;
+      }
+
+      // Preferred path in standalone builds: native Google Sign-In (no browser redirect flow).
+      if (GoogleSignin) {
+        console.log('[GoogleAuth] mode:', 'native-google-signin');
+        try {
+          await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
+          try {
+            await GoogleSignin.signOut();
+          } catch {
+            // ignore signOut failures; account picker can still open
+          }
+
+          const signInResult = await GoogleSignin.signIn();
+          let googleIdToken = signInResult?.data?.idToken || signInResult?.idToken;
+
+          if (!googleIdToken && GoogleSignin.getTokens) {
+            const tokens = await GoogleSignin.getTokens();
+            googleIdToken = tokens?.idToken;
+          }
+
+          if (!googleIdToken) {
+            throw new Error('Native Google Sign-In returned no idToken.');
+          }
+
+          const firebaseToken = await exchangeGoogleForFirebaseToken({
+            googleIdToken,
+            googleAccessToken: null,
+          });
+          console.log('[GoogleAuth] step:', 'firebase-exchange-success');
+
+          await dispatch(googleLogin(firebaseToken)).unwrap();
+          console.log('[GoogleAuth] step:', 'backend-login-success');
+          return;
+        } catch (nativeError) {
+          console.log('[GoogleAuth] native-google-signin-failed:', nativeError?.message || String(nativeError));
+          // Fall through to auth-session flow below when native signin fails.
+        }
+      }
+
       if (!hasFirebaseConfig || !firebaseApiKey) {
         setErrors({ google: 'Google login is not configured yet. Add Firebase env keys in frontend/.env.' });
         return;
@@ -122,43 +286,26 @@ const LoginScreen = ({ navigation }) => {
         return;
       }
 
-      if (__DEV__ && request.url) {
-        const hasExpectedRedirect = request.url.includes(encodeURIComponent(redirectUri));
-        if (!hasExpectedRedirect) {
-          console.warn('[GoogleAuth] Unexpected redirect URI in request URL', { redirectUri, requestUrl: request.url });
-        }
-      }
+      setGooglePending(true);
 
-      const authResult = await promptAsync({
+
+      const promptOptions = {
         useProxy: true,
         projectNameForProxy,
         showInRecents: true,
-      });
+      };
 
-      if (authResult.type !== 'success') {
-        return;
+      const authResult = await promptAsync(promptOptions);
+      console.log('[GoogleAuth] step:', 'auth-result-received', authResult?.type);
+      if (authResult?.type === 'dismiss') {
+        console.log('[GoogleAuth] dismiss-details:', {
+          hasUrl: Boolean(authResult?.url),
+          hasParams: Boolean(authResult?.params),
+        });
       }
-
-      let idToken =
-        authResult.authentication?.idToken ||
-        authResult.params?.id_token;
-
-      const accessToken =
-        authResult.authentication?.accessToken ||
-        authResult.params?.access_token;
-
-      if (!idToken && !accessToken) {
-        setErrors({ google: 'Google login failed. Missing token from Google response.' });
-        return;
-      }
-
-      const firebaseToken = await exchangeGoogleForFirebaseToken({
-        googleIdToken: idToken,
-        googleAccessToken: accessToken,
-      });
-
-      await dispatch(googleLogin(firebaseToken)).unwrap();
     } catch (e) {
+      console.log('[GoogleAuth] step:', 'login-failed', e?.message || String(e));
+      setGooglePending(false);
       setErrors({ google: e?.message || String(e) || 'Google login failed. Please try again.' });
     }
   };
@@ -252,7 +399,7 @@ const LoginScreen = ({ navigation }) => {
             iconFamily="ionicons"
             iconPosition="left"
             onPress={handleGoogleLogin}
-            disabled={!request}
+            disabled={!request || isExpoGo}
             style={styles.socialBtn}
             fullWidth
           />

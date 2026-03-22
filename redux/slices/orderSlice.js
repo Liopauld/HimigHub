@@ -103,10 +103,18 @@ const orderSlice = createSlice({
         state.loading = false;
         const index = state.orders.findIndex(o => o._id === action.payload._id);
         if (index !== -1) {
-          state.orders[index] = action.payload;
+          state.orders[index] = {
+            ...state.orders[index],
+            ...action.payload,
+            user: state.orders[index].user || action.payload.user,
+          };
         }
         if (state.order?._id === action.payload._id) {
-          state.order = action.payload;
+          state.order = {
+            ...state.order,
+            ...action.payload,
+            user: state.order.user || action.payload.user,
+          };
         }
       })
       .addCase(updateOrderStatus.rejected, (state, action) => { state.loading = false; state.error = action.payload; });

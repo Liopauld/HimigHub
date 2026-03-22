@@ -33,9 +33,13 @@ const DrawerContent = (props) => {
   const dispatch = useDispatch();
   const { user } = useSelector((s) => s.auth);
   const isAdmin = user?.role === 'admin';
-  const avatarUrl = user?.avatar
+  const avatarRawUrl = user?.avatar
     ? (user.avatar.startsWith('http') ? user.avatar : `${BASE_URL.replace('/api', '')}${user.avatar}`)
     : null;
+  const avatarVersion = user?.updatedAt ? new Date(user.updatedAt).getTime() : null;
+  const avatarUrl = avatarRawUrl && avatarVersion
+    ? `${avatarRawUrl}${avatarRawUrl.includes('?') ? '&' : '?'}v=${avatarVersion}`
+    : avatarRawUrl;
 
   const handleLogout = () => {
     Alert.alert('Logout', 'Are you sure you want to logout?', [

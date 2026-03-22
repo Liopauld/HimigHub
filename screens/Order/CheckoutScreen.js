@@ -303,15 +303,15 @@ const CheckoutScreen = ({ navigation, route }) => {
       <View style={[styles.footer, { backgroundColor: colors.surface, borderTopColor: colors.borderLight }]}>
         <View style={styles.summaryRow}>
           <Text variant="body" color="secondary">Items Total:</Text>
-          <Text variant="body" weight="semiBold">${checkoutItemsTotal.toFixed(2)}</Text>
+          <Text variant="body" weight="semiBold">₱{checkoutItemsTotal.toFixed(2)}</Text>
         </View>
         <View style={styles.summaryRow}>
           <Text variant="body" color="secondary">Shipping:</Text>
-          <Text variant="body" weight="semiBold">${shippingPrice.toFixed(2)}</Text>
+          <Text variant="body" weight="semiBold">₱{shippingPrice.toFixed(2)}</Text>
         </View>
         <View style={[styles.summaryRow, styles.grandTotalRow, { borderTopColor: colors.borderLight }]}>
           <Text variant="body" weight="bold">Grand Total:</Text>
-          <Text variant="h3" weight="bold" color="primary">${grandTotal.toFixed(2)}</Text>
+          <Text variant="h3" weight="bold" color="primary">₱{grandTotal.toFixed(2)}</Text>
         </View>
 
         <Button 

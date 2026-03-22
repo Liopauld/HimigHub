@@ -51,11 +51,11 @@ const getExpoHost = () => {
 };
 
 const buildDefaultBaseUrl = () => {
-  const expoHost = getExpoHost();
-  if (expoHost) return sanitizeApiUrl(`http://${expoHost}:${API_PORT}/api`);
-
   const envUrl = process.env.EXPO_PUBLIC_API_URL?.trim();
   if (envUrl) return sanitizeApiUrl(envUrl);
+
+  const expoHost = getExpoHost();
+  if (expoHost) return sanitizeApiUrl(`http://${expoHost}:${API_PORT}/api`);
 
   // Final fallback when host can't be inferred.
   return sanitizeApiUrl(Platform.OS === 'android'
@@ -67,7 +67,6 @@ export const BASE_URL = buildDefaultBaseUrl();
 
 export const api = axios.create({
   baseURL: BASE_URL,
-  headers: { 'Content-Type': 'application/json' },
   timeout: 30000,
 });
 
@@ -78,6 +77,16 @@ export const injectStore = (_store) => {
 
 // Request interceptor
 api.interceptors.request.use(async (config) => {
+  const isFormData =
+    (typeof FormData !== 'undefined' && config.data instanceof FormData) ||
+    (config.data && typeof config.data === 'object' && Array.isArray(config.data._parts));
+
+  if (isFormData && config.headers) {
+    // Let axios/runtime set proper multipart boundary automatically.
+    delete config.headers['Content-Type'];
+    delete config.headers['content-type'];
+  }
+
   const dbToken = await getToken();
   const stateToken = store?.getState?.()?.auth?.token;
   const token = dbToken || stateToken;
@@ -97,7 +106,11 @@ api.interceptors.response.use(
     }
 
     if (!err.response) {
-      return Promise.reject(new Error(`Cannot reach backend at ${BASE_URL}. Ensure backend is running on port ${API_PORT} and phone/emulator is on the same network.`));
+      const isCloudEndpoint = /^https?:\/\//i.test(BASE_URL) && !isLocalHost(new URL(BASE_URL).hostname);
+      const message = isCloudEndpoint
+        ? `Cannot reach backend at ${BASE_URL}. Check internet access and verify the deployed service is healthy.`
+        : `Cannot reach backend at ${BASE_URL}. Ensure backend is running on port ${API_PORT} and phone/emulator is on the same network.`;
+      return Promise.reject(new Error(message));
     }
 
     if (err.response?.status === 401) {
