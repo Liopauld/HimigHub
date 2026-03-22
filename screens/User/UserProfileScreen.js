@@ -19,6 +19,7 @@ const UserProfileScreen = ({ navigation }) => {
 
   const [name, setName] = useState(user?.name || '');
   const [email, setEmail] = useState(user?.email || '');
+  const [phone, setPhone] = useState(user?.phone || '');
   const [street, setStreet] = useState(user?.address?.street || '');
   const [city, setCity] = useState(user?.address?.city || '');
   const [stateValue, setStateValue] = useState(user?.address?.state || '');
@@ -30,9 +31,14 @@ const UserProfileScreen = ({ navigation }) => {
       Alert.alert('Error', 'Name and Email are required.');
       return;
     }
+    if (!String(phone || '').trim()) {
+      Alert.alert('Error', 'Phone number is required.');
+      return;
+    }
     const formData = new FormData();
     formData.append('name', name);
     formData.append('email', email);
+    formData.append('phone', String(phone || '').trim());
     formData.append('address', JSON.stringify({
       street: street.trim(),
       city: city.trim(),
@@ -96,6 +102,14 @@ const UserProfileScreen = ({ navigation }) => {
             onChangeText={setEmail} 
             keyboardType="email-address" 
             autoCapitalize="none" 
+          />
+
+          <Input
+            label="Phone Number"
+            value={phone}
+            onChangeText={setPhone}
+            keyboardType="phone-pad"
+            placeholder="e.g. 09171234567"
           />
 
           <Input
