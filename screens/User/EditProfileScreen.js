@@ -28,6 +28,8 @@ const shouldShowLocalSaveError = (message) => {
   if (normalized.includes('cannot reach backend at')) return false;
   if (normalized.includes('timed out while connecting')) return false;
   if (normalized.includes('upload request timed out')) return false;
+  if (normalized.includes('network error')) return false;
+  if (normalized.includes('request failed (')) return false;
   return true;
 };
 
@@ -176,7 +178,14 @@ const EditProfileScreen = ({ navigation }) => {
       country: country.trim(),
     };
 
-    const hasNewLocalAvatar = avatar && avatar !== user?.avatar && !avatar.startsWith('http');
+    const avatarUri =
+      typeof avatar === 'string'
+        ? avatar
+        : (avatar && typeof avatar === 'object' ? avatar.uri : '');
+    const currentAvatarUri = typeof user?.avatar === 'string' ? user.avatar : '';
+    const hasNewLocalAvatar = Boolean(
+      avatarUri && avatarUri !== currentAvatarUri && !avatarUri.startsWith('http')
+    );
 
     let payload;
     if (hasNewLocalAvatar) {
@@ -189,7 +198,7 @@ const EditProfileScreen = ({ navigation }) => {
       const selectedAsset =
         avatar && typeof avatar === 'object'
           ? avatar
-          : { uri: avatar, mimeType: avatarMimeType || undefined };
+          : { uri: avatarUri, mimeType: avatarMimeType || undefined };
       const { name, type } = getAvatarUploadMeta(selectedAsset.uri, selectedAsset.mimeType);
 
       formData.append('avatar', {

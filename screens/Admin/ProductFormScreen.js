@@ -78,6 +78,8 @@ const shouldShowLocalSaveError = (message) => {
   if (normalized.includes('cannot reach backend at')) return false;
   if (normalized.includes('timed out while connecting')) return false;
   if (normalized.includes('upload request timed out')) return false;
+  if (normalized.includes('network error')) return false;
+  if (normalized.includes('request failed (')) return false;
   return true;
 };
 
@@ -200,36 +202,58 @@ const ProductFormScreen = ({ navigation, route }) => {
     }
 
     setSaving(true);
-    const formData = new FormData();
-    formData.append('name', name.trim());
-    formData.append('brand', brand.trim());
-    formData.append('price', String(priceNum));
-    formData.append('description', description.trim());
-    formData.append('ingredients', ingredients.trim());
-    formData.append('category', category);
-    formData.append('stock', String(stockNum));
-    formData.append('isAvailable', String(isAvailable));
-    if (originalPrice) formData.append('originalPrice', String(parseFloat(originalPrice)));
-    if (discountPercent) formData.append('discountPercent', String(parseInt(discountPercent, 10)));
-    formData.append('sizes', JSON.stringify(selectedSizes));
 
-    images.forEach((uri, idx) => {
-      if (uri.startsWith('http')) return; // existing server image, skip
-      const ext = extractImageExtension(uri);
-      const mime = toMimeType(ext);
-      formData.append('images', {
-        uri,
-        name: `image_${idx}.${ext}`,
-        type: mime,
+    const productPayload = {
+      name: name.trim(),
+      brand: brand.trim(),
+      price: String(priceNum),
+      description: description.trim(),
+      ingredients: ingredients.trim(),
+      category,
+      stock: String(stockNum),
+      isAvailable,
+      sizes: selectedSizes,
+    };
+
+    if (originalPrice) productPayload.originalPrice = String(parseFloat(originalPrice));
+    if (discountPercent) productPayload.discountPercent = String(parseInt(discountPercent, 10));
+
+    const localImages = images.filter((uri) => !String(uri).startsWith('http'));
+    const shouldUseMultipart = localImages.length > 0;
+
+    let requestPayload = productPayload;
+    if (shouldUseMultipart) {
+      const formData = new FormData();
+      formData.append('name', productPayload.name);
+      formData.append('brand', productPayload.brand);
+      formData.append('price', productPayload.price);
+      formData.append('description', productPayload.description);
+      formData.append('ingredients', productPayload.ingredients);
+      formData.append('category', productPayload.category);
+      formData.append('stock', productPayload.stock);
+      formData.append('isAvailable', String(productPayload.isAvailable));
+      if (productPayload.originalPrice) formData.append('originalPrice', productPayload.originalPrice);
+      if (productPayload.discountPercent) formData.append('discountPercent', productPayload.discountPercent);
+      formData.append('sizes', JSON.stringify(productPayload.sizes || []));
+
+      localImages.forEach((uri, idx) => {
+        const ext = extractImageExtension(uri);
+        const mime = toMimeType(ext);
+        formData.append('images', {
+          uri,
+          name: `image_${idx}.${ext}`,
+          type: mime,
+        });
       });
-    });
+      requestPayload = formData;
+    }
 
     try {
       if (isEdit) {
-        await dispatch(updateProduct({ id: productId, formData })).unwrap();
+        await dispatch(updateProduct({ id: productId, data: requestPayload })).unwrap();
         notifySuccess('Product Updated', 'Product updated successfully.');
       } else {
-        await dispatch(createProduct(formData)).unwrap();
+        await dispatch(createProduct(requestPayload)).unwrap();
         notifySuccess('Product Created', 'Product created successfully.');
       }
       navigation.goBack();

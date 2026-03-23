@@ -12,6 +12,16 @@ import SidebarContext from '../../navigation/SidebarContext';
 import { useAppTheme } from '../../context/ThemeContext';
 import { notifyError, notifySuccess } from '../../utils/appNotifier';
 
+const shouldShowLocalSaveError = (message) => {
+  const normalized = String(message || '').toLowerCase();
+  if (normalized.includes('cannot reach backend at')) return false;
+  if (normalized.includes('timed out while connecting')) return false;
+  if (normalized.includes('upload request timed out')) return false;
+  if (normalized.includes('network error')) return false;
+  if (normalized.includes('request failed (')) return false;
+  return true;
+};
+
 const UserProfileScreen = ({ navigation }) => {
   const { openSidebar } = useContext(SidebarContext);
   const { colors, mode, setMode } = useAppTheme();
@@ -36,23 +46,27 @@ const UserProfileScreen = ({ navigation }) => {
       notifyError('Validation Error', 'Phone number is required.');
       return;
     }
-    const formData = new FormData();
-    formData.append('name', name);
-    formData.append('email', email);
-    formData.append('phone', String(phone || '').trim());
-    formData.append('address', JSON.stringify({
+    const payload = {
+      name,
+      email,
+      phone: String(phone || '').trim(),
+      address: {
       street: street.trim(),
       city: city.trim(),
       state: stateValue.trim(),
       zip: zip.trim(),
       country: country.trim(),
-    }));
+      },
+    };
     
-    dispatch(updateProfile(formData)).then((res) => {
+    dispatch(updateProfile(payload)).then((res) => {
       if (!res.error) {
         notifySuccess('Profile Updated', 'Profile updated successfully.');
       } else {
-        notifyError('Profile Update Failed', String(res.payload || 'Failed to update profile'));
+        const message = String(res.payload || 'Failed to update profile');
+        if (shouldShowLocalSaveError(message)) {
+          notifyError('Profile Update Failed', message);
+        }
       }
     });
   };

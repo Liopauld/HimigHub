@@ -1,9 +1,20 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import api from '../api/axiosConfig';
+import { BASE_URL } from '../api/axiosConfig';
 import { saveToken, deleteToken } from '../../db/sqlite';
+import { getToken } from '../../db/sqlite';
 
 const extractErrorMessage = (error, fallback) =>
   error?.response?.data?.message || error?.message || fallback;
+
+const parseResponseBody = (raw) => {
+  if (!raw) return {};
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return { message: raw };
+  }
+};
 
 export const loginUser = createAsyncThunk('auth/loginUser', async (credentials, { rejectWithValue }) => {
   try {
@@ -37,6 +48,26 @@ export const firebaseLogin = createAsyncThunk('auth/firebaseLogin', async (fireb
 
 export const updateProfile = createAsyncThunk('auth/updateProfile', async (formData, { rejectWithValue }) => {
   try {
+    const isFormData =
+      (typeof FormData !== 'undefined' && formData instanceof FormData) ||
+      (formData && typeof formData === 'object' && Array.isArray(formData._parts));
+
+    if (isFormData) {
+      const token = (await getToken()) || null;
+      const response = await fetch(`${BASE_URL}/users/profile`, {
+        method: 'PUT',
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+        body: formData,
+      });
+
+      const raw = await response.text();
+      const parsed = parseResponseBody(raw);
+      if (!response.ok) {
+        return rejectWithValue(parsed?.message || 'Profile update failed');
+      }
+      return parsed?.data?.user;
+    }
+
     const response = await api.put('/users/profile', formData);
     return response.data.data.user;
   } catch (error) {

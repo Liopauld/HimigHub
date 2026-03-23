@@ -1,8 +1,19 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import api from '../api/axiosConfig';
+import { BASE_URL } from '../api/axiosConfig';
+import { getToken } from '../../db/sqlite';
 
 const extractErrorMessage = (error, fallback) =>
   error?.response?.data?.message || error?.message || fallback;
+
+const parseResponseBody = (raw) => {
+  if (!raw) return {};
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return { message: raw };
+  }
+};
 
 export const fetchProducts = createAsyncThunk('product/fetchProducts', async (params, { rejectWithValue }) => {
   try {
@@ -26,6 +37,26 @@ export const fetchProductById = createAsyncThunk('product/fetchProductById', asy
 
 export const createProduct = createAsyncThunk('product/createProduct', async (formData, { rejectWithValue }) => {
   try {
+    const isFormData =
+      (typeof FormData !== 'undefined' && formData instanceof FormData) ||
+      (formData && typeof formData === 'object' && Array.isArray(formData._parts));
+
+    if (isFormData) {
+      const token = (await getToken()) || null;
+      const response = await fetch(`${BASE_URL}/products`, {
+        method: 'POST',
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+        body: formData,
+      });
+
+      const raw = await response.text();
+      const parsed = parseResponseBody(raw);
+      if (!response.ok) {
+        return rejectWithValue(parsed?.message || 'Failed to create product');
+      }
+      return parsed?.data?.product;
+    }
+
     const response = await api.post('/products', formData);
     return response.data.data.product;
   } catch (error) {
@@ -36,6 +67,27 @@ export const createProduct = createAsyncThunk('product/createProduct', async (fo
 export const updateProduct = createAsyncThunk('product/updateProduct', async ({ id, formData, data }, { rejectWithValue }) => {
   try {
     const payload = formData || data;
+
+    const isFormData =
+      (typeof FormData !== 'undefined' && payload instanceof FormData) ||
+      (payload && typeof payload === 'object' && Array.isArray(payload._parts));
+
+    if (isFormData) {
+      const token = (await getToken()) || null;
+      const response = await fetch(`${BASE_URL}/products/${id}`, {
+        method: 'PUT',
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+        body: payload,
+      });
+
+      const raw = await response.text();
+      const parsed = parseResponseBody(raw);
+      if (!response.ok) {
+        return rejectWithValue(parsed?.message || 'Failed to update product');
+      }
+      return parsed?.data?.product;
+    }
+
     const response = await api.put(`/products/${id}`, payload);
     return response.data.data.product;
   } catch (error) {
