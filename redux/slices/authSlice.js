@@ -16,6 +16,37 @@ const parseResponseBody = (raw) => {
   }
 };
 
+const isMultipartPayload = (value) => {
+  if (!value || typeof value !== 'object') return false;
+  if (typeof FormData !== 'undefined' && value instanceof FormData) return true;
+  if (Array.isArray(value._parts)) return true;
+  if (typeof value.append === 'function' && typeof value.getParts === 'function') return true;
+  if (value?.constructor?.name === 'FormData') return true;
+  return false;
+};
+
+const PROFILE_UPLOAD_TIMEOUT_MS = 90000;
+
+const uploadProfileWithTimeout = async (formData, token) => {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), PROFILE_UPLOAD_TIMEOUT_MS);
+
+  try {
+    const response = await fetch(`${BASE_URL}/users/profile`, {
+      method: 'PUT',
+      headers: {
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        Accept: 'application/json',
+      },
+      body: formData,
+      signal: controller.signal,
+    });
+    return response;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+};
+
 export const loginUser = createAsyncThunk('auth/loginUser', async (credentials, { rejectWithValue }) => {
   try {
     const response = await api.post('/auth/login', credentials);
@@ -48,17 +79,11 @@ export const firebaseLogin = createAsyncThunk('auth/firebaseLogin', async (fireb
 
 export const updateProfile = createAsyncThunk('auth/updateProfile', async (formData, { rejectWithValue }) => {
   try {
-    const isFormData =
-      (typeof FormData !== 'undefined' && formData instanceof FormData) ||
-      (formData && typeof formData === 'object' && Array.isArray(formData._parts));
+    const isFormData = isMultipartPayload(formData);
 
     if (isFormData) {
       const token = (await getToken()) || null;
-      const response = await fetch(`${BASE_URL}/users/profile`, {
-        method: 'PUT',
-        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-        body: formData,
-      });
+      const response = await uploadProfileWithTimeout(formData, token);
 
       const raw = await response.text();
       const parsed = parseResponseBody(raw);
@@ -71,6 +96,12 @@ export const updateProfile = createAsyncThunk('auth/updateProfile', async (formD
     const response = await api.put('/users/profile', formData);
     return response.data.data.user;
   } catch (error) {
+    if (error?.name === 'AbortError') {
+      return rejectWithValue('Profile image upload timed out. Please try again.');
+    }
+    if (String(error?.message || '').toLowerCase().includes('network request failed')) {
+      return rejectWithValue('Network request failed while uploading profile image.');
+    }
     return rejectWithValue(extractErrorMessage(error, 'Profile update failed'));
   }
 });

@@ -182,10 +182,8 @@ const EditProfileScreen = ({ navigation }) => {
       typeof avatar === 'string'
         ? avatar
         : (avatar && typeof avatar === 'object' ? avatar.uri : '');
-    const currentAvatarUri = typeof user?.avatar === 'string' ? user.avatar : '';
-    const hasNewLocalAvatar = Boolean(
-      avatarUri && avatarUri !== currentAvatarUri && !avatarUri.startsWith('http')
-    );
+    const isDeviceImageUri = /^(file|content|ph):\/\//i.test(avatarUri);
+    const hasNewLocalAvatar = Boolean(avatarUri && isDeviceImageUri);
 
     let payload;
     if (hasNewLocalAvatar) {
