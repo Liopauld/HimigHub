@@ -42,6 +42,7 @@ const ProductFormScreen = ({ navigation, route }) => {
   const isEdit = !!productId;
   const dispatch = useDispatch();
   const { selectedProduct, loading } = useSelector((s) => s.product);
+  const authUser = useSelector((s) => s.auth?.user);
   const { colors } = useAppTheme();
   const styles = getStyles(colors);
 
@@ -134,6 +135,11 @@ const ProductFormScreen = ({ navigation, route }) => {
   };
 
   const handleSave = async () => {
+    if (authUser?.role !== 'admin') {
+      Alert.alert('Admin access required', 'Only admin accounts can create or update products.');
+      return;
+    }
+
     if (!name.trim() || !brand.trim() || !price || !stock) {
       Alert.alert('Missing fields', 'Name, brand, price, and stock are required.');
       return;
