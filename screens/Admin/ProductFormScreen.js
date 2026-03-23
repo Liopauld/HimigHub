@@ -73,6 +73,14 @@ const getErrorMessage = (err, fallback) => {
   return fallback;
 };
 
+const shouldShowLocalSaveError = (message) => {
+  const normalized = String(message || '').toLowerCase();
+  if (normalized.includes('cannot reach backend at')) return false;
+  if (normalized.includes('timed out while connecting')) return false;
+  if (normalized.includes('upload request timed out')) return false;
+  return true;
+};
+
 const ProductFormScreen = ({ navigation, route }) => {
   const { productId } = route.params || {};
   const isEdit = !!productId;
@@ -226,7 +234,10 @@ const ProductFormScreen = ({ navigation, route }) => {
       }
       navigation.goBack();
     } catch (err) {
-      notifyError('Save Failed', getErrorMessage(err, 'Failed to save product.'));
+      const errorMessage = getErrorMessage(err, 'Failed to save product.');
+      if (shouldShowLocalSaveError(errorMessage)) {
+        notifyError('Save Failed', errorMessage);
+      }
     } finally {
       setSaving(false);
     }

@@ -82,6 +82,8 @@ export const api = axios.create({
   timeout: 30000,
 });
 
+const MULTIPART_TIMEOUT_MS = 120000;
+
 let store;
 export const injectStore = (_store) => {
   store = _store;
@@ -97,6 +99,10 @@ api.interceptors.request.use(async (config) => {
     // Let axios/runtime set proper multipart boundary automatically.
     delete config.headers['Content-Type'];
     delete config.headers['content-type'];
+
+    // Multipart uploads (especially with cold starts/cloud uploads) can exceed the default timeout.
+    const currentTimeout = Number(config.timeout) || 0;
+    config.timeout = Math.max(currentTimeout, MULTIPART_TIMEOUT_MS);
   }
 
   const dbToken = await getToken();
@@ -114,7 +120,14 @@ api.interceptors.response.use(
   (res) => res,
   async (err) => {
     if (err.code === 'ECONNABORTED') {
-      const timeoutError = new Error(`Request timeout while connecting to ${BASE_URL}`);
+      const isUploadRequest =
+        (typeof FormData !== 'undefined' && err.config?.data instanceof FormData) ||
+        (err.config?.data && typeof err.config.data === 'object' && Array.isArray(err.config.data._parts));
+      const timeoutError = new Error(
+        isUploadRequest
+          ? `Upload request timed out while connecting to ${BASE_URL}. Try again after backend wakes up.`
+          : `Request timeout while connecting to ${BASE_URL}`
+      );
       notifyError('Request Timeout', timeoutError.message);
       return Promise.reject(timeoutError);
     }
