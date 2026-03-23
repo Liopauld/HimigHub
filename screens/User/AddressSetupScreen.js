@@ -16,6 +16,14 @@ const isAddressComplete = (address) => {
   return Boolean(a.street?.trim() && a.city?.trim() && a.zip?.trim() && a.country?.trim());
 };
 
+const shouldShowLocalSaveError = (message) => {
+  const normalized = String(message || '').toLowerCase();
+  if (normalized.includes('cannot reach backend at')) return false;
+  if (normalized.includes('timed out while connecting')) return false;
+  if (normalized.includes('upload request timed out')) return false;
+  return true;
+};
+
 const AddressSetupScreen = () => {
   const dispatch = useDispatch();
   const { user, loading } = useSelector((state) => state.auth);
@@ -67,13 +75,17 @@ const AddressSetupScreen = () => {
       return;
     }
 
-    const formData = new FormData();
-    formData.append('phone', phone.trim());
-    formData.append('address', JSON.stringify(address));
+    const payload = {
+      phone: phone.trim(),
+      address,
+    };
 
-    const result = await dispatch(updateProfile(formData));
+    const result = await dispatch(updateProfile(payload));
     if (result.error) {
-      notifyError('Save Failed', String(result.payload || 'Failed to save address'));
+      const errorMessage = String(result.payload || 'Failed to save address');
+      if (shouldShowLocalSaveError(errorMessage)) {
+        notifyError('Save Failed', errorMessage);
+      }
       return;
     }
     notifySuccess('Address Saved', 'Address and phone updated successfully.');

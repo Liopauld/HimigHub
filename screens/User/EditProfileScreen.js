@@ -23,6 +23,14 @@ import LoadingOverlay from '../../components/common/LoadingOverlay';
 import { useAppTheme } from '../../context/ThemeContext';
 import { notifyError, notifySuccess } from '../../utils/appNotifier';
 
+const shouldShowLocalSaveError = (message) => {
+  const normalized = String(message || '').toLowerCase();
+  if (normalized.includes('cannot reach backend at')) return false;
+  if (normalized.includes('timed out while connecting')) return false;
+  if (normalized.includes('upload request timed out')) return false;
+  return true;
+};
+
 const EditProfileScreen = ({ navigation }) => {
   const { colors } = useAppTheme();
   const dispatch = useDispatch();
@@ -160,21 +168,24 @@ const EditProfileScreen = ({ navigation }) => {
       notifyError('Validation Error', 'Phone number is required.');
       return;
     }
-    const formData = new FormData();
-    formData.append('name', name.trim());
-    formData.append('email', email.trim());
-    formData.append('phone', phone.trim());
-    formData.append(
-      'address',
-      JSON.stringify({
-        street: street.trim(),
-        city: city.trim(),
-        state: stateValue.trim(),
-        zip: zip.trim(),
-        country: country.trim(),
-      })
-    );
-    if (avatar && avatar !== user?.avatar && !avatar.startsWith('http')) {
+    const addressPayload = {
+      street: street.trim(),
+      city: city.trim(),
+      state: stateValue.trim(),
+      zip: zip.trim(),
+      country: country.trim(),
+    };
+
+    const hasNewLocalAvatar = avatar && avatar !== user?.avatar && !avatar.startsWith('http');
+
+    let payload;
+    if (hasNewLocalAvatar) {
+      const formData = new FormData();
+      formData.append('name', name.trim());
+      formData.append('email', email.trim());
+      formData.append('phone', phone.trim());
+      formData.append('address', JSON.stringify(addressPayload));
+
       const selectedAsset =
         avatar && typeof avatar === 'object'
           ? avatar
@@ -186,13 +197,25 @@ const EditProfileScreen = ({ navigation }) => {
         name,
         type,
       });
+      payload = formData;
+    } else {
+      payload = {
+        name: name.trim(),
+        email: email.trim(),
+        phone: phone.trim(),
+        address: addressPayload,
+      };
     }
+
     try {
-      await dispatch(updateProfile(formData)).unwrap();
+      await dispatch(updateProfile(payload)).unwrap();
       notifySuccess('Profile Updated', 'Profile updated successfully.');
       handleGoBack();
     } catch (err) {
-      notifyError('Profile Update Failed', String(err || 'Failed to update profile.'));
+      const errorMessage = String(err || 'Failed to update profile.');
+      if (shouldShowLocalSaveError(errorMessage)) {
+        notifyError('Profile Update Failed', errorMessage);
+      }
     }
   };
 
