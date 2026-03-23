@@ -2,13 +2,16 @@ import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import api from '../api/axiosConfig';
 import { saveToken, deleteToken } from '../../db/sqlite';
 
+const extractErrorMessage = (error, fallback) =>
+  error?.response?.data?.message || error?.message || fallback;
+
 export const loginUser = createAsyncThunk('auth/loginUser', async (credentials, { rejectWithValue }) => {
   try {
     const response = await api.post('/auth/login', credentials);
     await saveToken(response.data.data.token);
     return response.data.data;
   } catch (error) {
-    return rejectWithValue(error.response?.data?.message || error.message || 'Login failed');
+    return rejectWithValue(extractErrorMessage(error, 'Login failed'));
   }
 });
 
@@ -18,7 +21,7 @@ export const registerUser = createAsyncThunk('auth/registerUser', async (userDat
     await saveToken(response.data.data.token);
     return response.data.data;
   } catch (error) {
-    return rejectWithValue(error.response?.data?.message || error.message || 'Registration failed');
+    return rejectWithValue(extractErrorMessage(error, 'Registration failed'));
   }
 });
 
@@ -28,9 +31,7 @@ export const firebaseLogin = createAsyncThunk('auth/firebaseLogin', async (fireb
     await saveToken(response.data.data.token);
     return response.data.data;
   } catch (error) {
-    const apiMessage = error.response?.data?.message;
-    const fallback = error.message || 'Firebase Auth failed';
-    return rejectWithValue(apiMessage || fallback);
+    return rejectWithValue(extractErrorMessage(error, 'Firebase Auth failed'));
   }
 });
 
@@ -39,7 +40,7 @@ export const updateProfile = createAsyncThunk('auth/updateProfile', async (formD
     const response = await api.put('/users/profile', formData);
     return response.data.data.user;
   } catch (error) {
-    return rejectWithValue(error.response?.data?.message || 'Profile update failed');
+    return rejectWithValue(extractErrorMessage(error, 'Profile update failed'));
   }
 });
 
@@ -48,7 +49,7 @@ export const savePushToken = createAsyncThunk('auth/savePushToken', async (token
     const response = await api.put('/users/push-token', { token });
     return response.data;
   } catch (error) {
-    return rejectWithValue(error.response?.data?.message || 'Failed to save push token');
+    return rejectWithValue(extractErrorMessage(error, 'Failed to save push token'));
   }
 });
 

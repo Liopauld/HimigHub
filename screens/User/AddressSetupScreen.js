@@ -9,6 +9,7 @@ import Button from '../../components/buttons/Button';
 import { updateProfile } from '../../redux/slices/authSlice';
 import { useAppTheme } from '../../context/ThemeContext';
 import { getCurrentLocation } from '../../utils/geolocation';
+import { notifyError, notifySuccess } from '../../utils/appNotifier';
 
 const isAddressComplete = (address) => {
   const a = address || {};
@@ -40,7 +41,7 @@ const AddressSetupScreen = () => {
         setStateValue(locationData.state || '');
         setZip(locationData.zip || '');
         setCountry(locationData.country || '');
-        Alert.alert('Success', 'Address autofilled from current location.');
+        notifySuccess('Location Added', 'Address autofilled from current location.');
       }
     } finally {
       setLocatingAddress(false);
@@ -57,12 +58,12 @@ const AddressSetupScreen = () => {
     };
 
     if (!isAddressComplete(address)) {
-      Alert.alert('Required', 'Please complete Street, City, Zip, and Country.');
+      notifyError('Missing Address Fields', 'Please complete Street, City, Zip, and Country.');
       return;
     }
 
     if (!phone.trim()) {
-      Alert.alert('Required', 'Phone number is required to continue.');
+      notifyError('Phone Required', 'Phone number is required to continue.');
       return;
     }
 
@@ -72,8 +73,10 @@ const AddressSetupScreen = () => {
 
     const result = await dispatch(updateProfile(formData));
     if (result.error) {
-      Alert.alert('Error', result.payload || 'Failed to save address');
+      notifyError('Save Failed', String(result.payload || 'Failed to save address'));
+      return;
     }
+    notifySuccess('Address Saved', 'Address and phone updated successfully.');
   };
 
   const insets = useSafeAreaInsets();

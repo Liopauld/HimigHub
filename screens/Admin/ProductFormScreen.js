@@ -20,6 +20,7 @@ import AppButton from '../../components/common/AppButton';
 import LoadingOverlay from '../../components/common/LoadingOverlay';
 import SizeChip from '../../components/common/SizeChip';
 import { useAppTheme } from '../../context/ThemeContext';
+import { notifyError, notifySuccess } from '../../utils/appNotifier';
 
 const AVAILABLE_SIZES = [
   'Soprano',
@@ -36,6 +37,41 @@ const AVAILABLE_SIZES = [
   'Electric Pack',
 ];
 const CATEGORIES = ['Wind', 'String', 'Percussion', 'Accessories'];
+const ALLOWED_IMAGE_EXTENSIONS = ['jpg', 'jpeg', 'png', 'webp', 'heic', 'heif'];
+
+const extractImageExtension = (uri) => {
+  const normalized = String(uri || '').split('?')[0].split('#')[0];
+  const extMatch = normalized.match(/\.([a-zA-Z0-9]+)$/);
+  const ext = extMatch?.[1]?.toLowerCase();
+  if (ext && ALLOWED_IMAGE_EXTENSIONS.includes(ext)) {
+    return ext;
+  }
+  return 'jpg';
+};
+
+const toMimeType = (ext) => {
+  switch (ext) {
+    case 'png':
+      return 'image/png';
+    case 'webp':
+      return 'image/webp';
+    case 'heic':
+      return 'image/heic';
+    case 'heif':
+      return 'image/heif';
+    default:
+      return 'image/jpeg';
+  }
+};
+
+const getErrorMessage = (err, fallback) => {
+  if (typeof err === 'string' && err.trim()) return err;
+  if (typeof err?.message === 'string' && err.message.trim()) return err.message;
+  if (typeof err?.response?.data?.message === 'string' && err.response.data.message.trim()) {
+    return err.response.data.message;
+  }
+  return fallback;
+};
 
 const ProductFormScreen = ({ navigation, route }) => {
   const { productId } = route.params || {};
@@ -171,18 +207,8 @@ const ProductFormScreen = ({ navigation, route }) => {
 
     images.forEach((uri, idx) => {
       if (uri.startsWith('http')) return; // existing server image, skip
-      const parts = uri.split('.');
-      const ext = (parts[parts.length - 1] || 'jpg').toLowerCase();
-      const mime =
-        ext === 'png'
-          ? 'image/png'
-          : ext === 'webp'
-          ? 'image/webp'
-          : ext === 'heic'
-          ? 'image/heic'
-          : ext === 'heif'
-          ? 'image/heif'
-          : 'image/jpeg';
+      const ext = extractImageExtension(uri);
+      const mime = toMimeType(ext);
       formData.append('images', {
         uri,
         name: `image_${idx}.${ext}`,
@@ -193,14 +219,14 @@ const ProductFormScreen = ({ navigation, route }) => {
     try {
       if (isEdit) {
         await dispatch(updateProduct({ id: productId, formData })).unwrap();
-        Alert.alert('Updated', 'Product updated successfully.');
+        notifySuccess('Product Updated', 'Product updated successfully.');
       } else {
         await dispatch(createProduct(formData)).unwrap();
-        Alert.alert('Created', 'Product created successfully.');
+        notifySuccess('Product Created', 'Product created successfully.');
       }
       navigation.goBack();
     } catch (err) {
-      Alert.alert('Error', err || 'Failed to save product.');
+      notifyError('Save Failed', getErrorMessage(err, 'Failed to save product.'));
     } finally {
       setSaving(false);
     }

@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "HIMIGHUB",
-    "owner": "pauldom",
+    "owner": "himighub",
     "slug": "himighub",
     "scheme": "himighub",
     "sdkVersion": "54.0.0",
@@ -41,7 +41,7 @@
     ],
     "extra": {
       "eas": {
-        "projectId": "24c32d38-7714-441f-82a1-16898e9025d5"
+        "projectId": "b6590b69-a8f3-4d19-9a8c-35cf836c1975"
       }
     }
   }

@@ -1,6 +1,9 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import api from '../api/axiosConfig';
 
+const extractErrorMessage = (error, fallback) =>
+  error?.response?.data?.message || error?.message || fallback;
+
 export const fetchProducts = createAsyncThunk('product/fetchProducts', async (params, { rejectWithValue }) => {
   try {
     const { search = '', category = '', minPrice = '', maxPrice = '', page = 1, limit = 20 } = params || {};
@@ -8,7 +11,7 @@ export const fetchProducts = createAsyncThunk('product/fetchProducts', async (pa
     const response = await api.get(`/products${query}`);
     return response.data.data;
   } catch (error) {
-    return rejectWithValue(error.response?.data?.message || 'Failed to fetch products');
+    return rejectWithValue(extractErrorMessage(error, 'Failed to fetch products'));
   }
 });
 
@@ -17,7 +20,7 @@ export const fetchProductById = createAsyncThunk('product/fetchProductById', asy
     const response = await api.get(`/products/${id}`);
     return response.data.data.product;
   } catch (error) {
-    return rejectWithValue(error.response?.data?.message || 'Failed to fetch product');
+    return rejectWithValue(extractErrorMessage(error, 'Failed to fetch product'));
   }
 });
 
@@ -26,7 +29,7 @@ export const createProduct = createAsyncThunk('product/createProduct', async (fo
     const response = await api.post('/products', formData);
     return response.data.data.product;
   } catch (error) {
-    return rejectWithValue(error.response?.data?.message || 'Failed to create product');
+    return rejectWithValue(extractErrorMessage(error, 'Failed to create product'));
   }
 });
 
@@ -36,7 +39,7 @@ export const updateProduct = createAsyncThunk('product/updateProduct', async ({ 
     const response = await api.put(`/products/${id}`, payload);
     return response.data.data.product;
   } catch (error) {
-    return rejectWithValue(error.response?.data?.message || 'Failed to update product');
+    return rejectWithValue(extractErrorMessage(error, 'Failed to update product'));
   }
 });
 
@@ -45,7 +48,7 @@ export const deleteProduct = createAsyncThunk('product/deleteProduct', async (id
     await api.delete(`/products/${id}`);
     return id;
   } catch (error) {
-    return rejectWithValue(error.response?.data?.message || 'Failed to delete product');
+    return rejectWithValue(extractErrorMessage(error, 'Failed to delete product'));
   }
 });
 

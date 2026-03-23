@@ -9,6 +9,7 @@ import Button from '../../components/buttons/Button';
 import { useAppTheme } from '../../context/ThemeContext';
 import { formatCurrency } from '../../utils/formatCurrency';
 import { BASE_URL } from '../../redux/api/axiosConfig';
+import { notifyError, notifySuccess } from '../../utils/appNotifier';
 
 const ProductManagementScreen = ({ navigation }) => {
   const dispatch = useDispatch();
@@ -16,13 +17,28 @@ const ProductManagementScreen = ({ navigation }) => {
   const { colors } = useAppTheme();
 
   useEffect(() => {
-    dispatch(fetchProducts());
+    dispatch(fetchProducts())
+      .unwrap()
+      .catch((err) => {
+        notifyError('Products Load Failed', String(err || 'Failed to fetch products.'));
+      });
   }, [dispatch]);
 
   const handleDelete = (id) => {
     Alert.alert('Delete Product', 'Are you sure you want to delete this product?', [
       { text: 'Cancel', style: 'cancel' },
-      { text: 'Delete', style: 'destructive', onPress: () => dispatch(deleteProduct(id)) }
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await dispatch(deleteProduct(id)).unwrap();
+            notifySuccess('Product Deleted', 'Product has been removed from the catalog.');
+          } catch (err) {
+            notifyError('Delete Failed', String(err || 'Unable to delete product.'));
+          }
+        },
+      },
     ]);
   };
 

@@ -2,6 +2,7 @@ import axios from 'axios';
 import { Platform } from 'react-native';
 import Constants from 'expo-constants';
 import { getToken, deleteToken } from '../../db/sqlite';
+import { notifyError } from '../../utils/appNotifier';
 
 const API_PORT = 5000;
 
@@ -65,6 +66,17 @@ const buildDefaultBaseUrl = () => {
 
 export const BASE_URL = buildDefaultBaseUrl();
 
+const getApiErrorMessage = (err) => {
+  const responseData = err?.response?.data;
+  if (typeof responseData?.message === 'string' && responseData.message.trim()) {
+    return responseData.message.trim();
+  }
+  if (typeof err?.message === 'string' && err.message.trim()) {
+    return err.message.trim();
+  }
+  return 'Something went wrong while communicating with the server.';
+};
+
 export const api = axios.create({
   baseURL: BASE_URL,
   timeout: 30000,
@@ -102,7 +114,9 @@ api.interceptors.response.use(
   (res) => res,
   async (err) => {
     if (err.code === 'ECONNABORTED') {
-      return Promise.reject(new Error(`Request timeout while connecting to ${BASE_URL}`));
+      const timeoutError = new Error(`Request timeout while connecting to ${BASE_URL}`);
+      notifyError('Request Timeout', timeoutError.message);
+      return Promise.reject(timeoutError);
     }
 
     if (!err.response) {
@@ -110,6 +124,7 @@ api.interceptors.response.use(
       const message = isCloudEndpoint
         ? `Cannot reach backend at ${BASE_URL}. Check internet access and verify the deployed service is healthy.`
         : `Cannot reach backend at ${BASE_URL}. Ensure backend is running on port ${API_PORT} and phone/emulator is on the same network.`;
+      notifyError('Network Error', message);
       return Promise.reject(new Error(message));
     }
 
@@ -120,6 +135,8 @@ api.interceptors.response.use(
         store.dispatch({ type: 'auth/logout' });
       }
     }
+
+    notifyError(`Request Failed (${err.response.status})`, getApiErrorMessage(err));
     return Promise.reject(err);
   }
 );

@@ -1,6 +1,9 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import api from '../api/axiosConfig';
 
+const extractErrorMessage = (error, fallback) =>
+  error?.response?.data?.message || error?.message || fallback;
+
 export const fetchAdminUsers = createAsyncThunk(
   'adminUsers/fetchAdminUsers',
   async (_, { rejectWithValue }) => {
@@ -8,7 +11,7 @@ export const fetchAdminUsers = createAsyncThunk(
       const response = await api.get('/users');
       return response.data.data.users || [];
     } catch (error) {
-      return rejectWithValue(error.response?.data?.message || 'Failed to fetch users');
+      return rejectWithValue(extractErrorMessage(error, 'Failed to fetch users'));
     }
   }
 );
@@ -20,7 +23,7 @@ export const updateAdminUserStatus = createAsyncThunk(
       const response = await api.put(`/users/${id}/status`, { isActive });
       return response.data.data.user;
     } catch (error) {
-      return rejectWithValue(error.response?.data?.message || 'Failed to update user status');
+      return rejectWithValue(extractErrorMessage(error, 'Failed to update user status'));
     }
   }
 );
@@ -32,7 +35,7 @@ export const updateAdminUserRole = createAsyncThunk(
       const response = await api.put(`/users/${id}/role`, { role });
       return response.data.data.user;
     } catch (error) {
-      return rejectWithValue(error.response?.data?.message || 'Failed to update user role');
+      return rejectWithValue(extractErrorMessage(error, 'Failed to update user role'));
     }
   }
 );

@@ -21,6 +21,7 @@ import { updateProfile } from '../../redux/slices/authSlice';
 import AppButton from '../../components/common/AppButton';
 import LoadingOverlay from '../../components/common/LoadingOverlay';
 import { useAppTheme } from '../../context/ThemeContext';
+import { notifyError, notifySuccess } from '../../utils/appNotifier';
 
 const EditProfileScreen = ({ navigation }) => {
   const { colors } = useAppTheme();
@@ -72,7 +73,7 @@ const EditProfileScreen = ({ navigation }) => {
   const pickImage = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
-      Alert.alert('Permission required', 'Please allow photo library access to upload an avatar.');
+      notifyError('Permission Required', 'Please allow photo library access to upload an avatar.');
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -90,7 +91,7 @@ const EditProfileScreen = ({ navigation }) => {
   const takePhoto = async () => {
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
     if (status !== 'granted') {
-      Alert.alert('Permission required', 'Please allow camera access to take an avatar photo.');
+      notifyError('Permission Required', 'Please allow camera access to take an avatar photo.');
       return;
     }
     const result = await ImagePicker.launchCameraAsync({
@@ -118,7 +119,7 @@ const EditProfileScreen = ({ navigation }) => {
       setGettingLocation(true);
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert('Permission Denied', 'Location permission is required to use this feature.');
+        notifyError('Permission Denied', 'Location permission is required to use this feature.');
         setGettingLocation(false);
         return;
       }
@@ -139,12 +140,12 @@ const EditProfileScreen = ({ navigation }) => {
         setStateValue(address.region || '');
         setZip(address.postalCode || '');
         setCountry(address.country || '');
-        Alert.alert('Location Set', 'Your address has been updated with current location.');
+        notifySuccess('Location Set', 'Your address has been updated with current location.');
       } else {
-        Alert.alert('Location Found', 'Coordinates: ' + latitude.toFixed(4) + ', ' + longitude.toFixed(4) + '\nPlease fill in the address manually.');
+        notifyError('Address Not Found', 'Coordinates found, but reverse geocoding returned no address. Please fill in manually.');
       }
     } catch (error) {
-      Alert.alert('Error', 'Failed to get location: ' + error.message);
+      notifyError('Location Error', 'Failed to get location: ' + (error?.message || 'Unknown error'));
     } finally {
       setGettingLocation(false);
     }
@@ -152,11 +153,11 @@ const EditProfileScreen = ({ navigation }) => {
 
   const handleSave = async () => {
     if (!name.trim()) {
-      Alert.alert('Validation', 'Name cannot be empty.');
+      notifyError('Validation Error', 'Name cannot be empty.');
       return;
     }
     if (!phone.trim()) {
-      Alert.alert('Validation', 'Phone number is required.');
+      notifyError('Validation Error', 'Phone number is required.');
       return;
     }
     const formData = new FormData();
@@ -188,10 +189,10 @@ const EditProfileScreen = ({ navigation }) => {
     }
     try {
       await dispatch(updateProfile(formData)).unwrap();
-      Alert.alert('Success', 'Profile updated!');
+      notifySuccess('Profile Updated', 'Profile updated successfully.');
       handleGoBack();
     } catch (err) {
-      Alert.alert('Error', err || 'Failed to update profile.');
+      notifyError('Profile Update Failed', String(err || 'Failed to update profile.'));
     }
   };
 

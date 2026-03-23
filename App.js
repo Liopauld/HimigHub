@@ -9,6 +9,7 @@ import AppNavigator from './navigation/AppNavigator';
 import { initDB } from './db/sqlite';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { ThemeProvider } from './context/ThemeContext';
+import GlobalToast from './components/common/GlobalToast';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -52,6 +53,7 @@ export default function App() {
         <Provider store={store}>
           <PersistGate loading={null} persistor={persistor}>
             <AppNavigator />
+            <GlobalToast />
           </PersistGate>
         </Provider>
       </ThemeProvider>

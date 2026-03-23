@@ -10,6 +10,7 @@ import IconButton from '../../components/buttons/IconButton';
 import { BASE_URL } from '../../redux/api/axiosConfig';
 import SidebarContext from '../../navigation/SidebarContext';
 import { useAppTheme } from '../../context/ThemeContext';
+import { notifyError, notifySuccess } from '../../utils/appNotifier';
 
 const UserProfileScreen = ({ navigation }) => {
   const { openSidebar } = useContext(SidebarContext);
@@ -28,11 +29,11 @@ const UserProfileScreen = ({ navigation }) => {
 
   const handleUpdate = () => {
     if (!name || !email) {
-      Alert.alert('Error', 'Name and Email are required.');
+      notifyError('Validation Error', 'Name and Email are required.');
       return;
     }
     if (!String(phone || '').trim()) {
-      Alert.alert('Error', 'Phone number is required.');
+      notifyError('Validation Error', 'Phone number is required.');
       return;
     }
     const formData = new FormData();
@@ -49,9 +50,9 @@ const UserProfileScreen = ({ navigation }) => {
     
     dispatch(updateProfile(formData)).then((res) => {
       if (!res.error) {
-        Alert.alert('Success', 'Profile updated successfully!');
+        notifySuccess('Profile Updated', 'Profile updated successfully.');
       } else {
-        Alert.alert('Error', res.payload || 'Failed to update profile');
+        notifyError('Profile Update Failed', String(res.payload || 'Failed to update profile'));
       }
     });
   };

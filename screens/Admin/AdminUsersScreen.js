@@ -6,6 +6,7 @@ import Text from '../../components/typography/Text';
 import IconButton from '../../components/buttons/IconButton';
 import { useAppTheme } from '../../context/ThemeContext';
 import { fetchAdminUsers, updateAdminUserStatus, updateAdminUserRole } from '../../redux/slices/adminUserSlice';
+import { notifyError, notifySuccess } from '../../utils/appNotifier';
 
 const AdminUsersScreen = ({ navigation }) => {
   const dispatch = useDispatch();
@@ -14,7 +15,11 @@ const AdminUsersScreen = ({ navigation }) => {
   const { colors } = useAppTheme();
 
   useEffect(() => {
-    dispatch(fetchAdminUsers());
+    dispatch(fetchAdminUsers())
+      .unwrap()
+      .catch((err) => {
+        notifyError('Users Load Failed', String(err || 'Failed to fetch users.'));
+      });
   }, [dispatch]);
 
   const handleToggle = (user) => {
@@ -32,8 +37,13 @@ const AdminUsersScreen = ({ navigation }) => {
         {
           text: next ? 'Activate' : 'Deactivate',
           onPress: async () => {
-            await dispatch(updateAdminUserStatus({ id: user._id, isActive: next }));
-            dispatch(fetchAdminUsers());
+            try {
+              await dispatch(updateAdminUserStatus({ id: user._id, isActive: next })).unwrap();
+              notifySuccess('User Updated', `${user.name} is now ${next ? 'active' : 'inactive'}.`);
+              await dispatch(fetchAdminUsers()).unwrap();
+            } catch (err) {
+              notifyError('Update Failed', String(err || 'Unable to update user status.'));
+            }
           },
         },
       ]
@@ -55,8 +65,13 @@ const AdminUsersScreen = ({ navigation }) => {
         {
           text: 'Confirm',
           onPress: async () => {
-            await dispatch(updateAdminUserRole({ id: user._id, role: targetRole }));
-            dispatch(fetchAdminUsers());
+            try {
+              await dispatch(updateAdminUserRole({ id: user._id, role: targetRole })).unwrap();
+              notifySuccess('Role Updated', `${user.name} is now ${targetRole}.`);
+              await dispatch(fetchAdminUsers()).unwrap();
+            } catch (err) {
+              notifyError('Role Update Failed', String(err || 'Unable to update user role.'));
+            }
           },
         },
       ]
